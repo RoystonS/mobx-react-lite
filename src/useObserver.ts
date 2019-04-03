@@ -1,5 +1,5 @@
 import { Reaction } from "mobx"
-import { useDebugValue, useEffect, useRef } from "react"
+import { useDebugValue, useEffect, useState } from "react"
 import { printDebugValue } from "./printDebugValue"
 import { isUsingStaticRendering } from "./staticRendering"
 import { useForceUpdate } from "./utils"
@@ -24,42 +24,37 @@ export function useObserver<T>(
     const wantedForceUpdateHook = options.useForceUpdate || useForceUpdate
     const forceUpdate = wantedForceUpdateHook()
 
-    const reaction = useRef<Reaction | null>(null)
-    const committed = useRef(false)
-
-    if (!reaction.current) {
-        // First render for this component. Not yet committed.
-        reaction.current = new Reaction(`observer(${baseComponentName})`, () => {
-            // Observable has changed. Only force an update if we've definitely
-            // been committed.
-            if (committed.current) {
-                forceUpdate()
-            }
-        })
-    }
-
-    useDebugValue(reaction, printDebugValue)
+    const [reaction, setReaction] = useState<Reaction | undefined>(undefined)
 
     useEffect(() => {
-        committed.current = true
-        return () => reaction.current!.dispose()
+        const newReaction = new Reaction(`observer(${baseComponentName})`, () => {
+            forceUpdate()
+        })
+        setReaction(newReaction)
+        return () => newReaction.dispose()
     }, [])
+
+    useDebugValue(reaction, printDebugValue)
 
     // render the original component, but have the
     // reaction track the observables, so that rendering
     // can be invalidated (see above) once a dependency changes
-    let rendering!: T
     let exception
-    reaction.current.track(() => {
-        try {
-            rendering = fn()
-        } catch (e) {
-            exception = e
+    if (reaction) {
+        let rendering!: T
+        reaction.track(() => {
+            try {
+                rendering = fn()
+            } catch (e) {
+                exception = e
+            }
+        })
+        if (exception) {
+            throw exception // re-throw any exceptions catched during rendering
         }
-    })
-    if (exception) {
-        reaction.current.dispose()
-        throw exception // re-throw any exceptions catched during rendering
+        return rendering
+    } else {
+        // We're not yet committed; we can't create a reaction in case it leaks
+        return fn()
     }
-    return rendering
 }

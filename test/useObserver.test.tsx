@@ -4,7 +4,6 @@ import * as React from "react"
 import { act, cleanup, render } from "react-testing-library"
 
 import { useObserver } from "../src"
-import { resetCleanupScheduleForTests } from "../src/useObserver"
 
 afterEach(cleanup)
 
@@ -43,8 +42,6 @@ test("uncommitted observing components should not attempt state changes", () => 
 })
 
 test("uncommitted components should not leak observations", async () => {
-    resetCleanupScheduleForTests()
-
     jest.useFakeTimers()
 
     const store = mobx.observable({ count1: 0, count2: 0 })

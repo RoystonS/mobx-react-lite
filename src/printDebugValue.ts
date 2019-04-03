@@ -1,8 +1,8 @@
 import { getDependencyTree, Reaction } from "mobx"
 
-export function printDebugValue(v: React.MutableRefObject<Reaction | null>) {
-    if (!v.current) {
+export function printDebugValue(r: Reaction | undefined) {
+    if (!r) {
         return "<unknown>"
     }
-    return getDependencyTree(v.current)
+    return getDependencyTree(r)
 }
